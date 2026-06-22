@@ -113,3 +113,26 @@ def test_appeal_can_uphold_rejection(api):
     assert resp.status_code == 200
     assert resp.json()["final_decision"] == "rejected"
     assert resp.json()["category"] == "spam"
+
+
+def test_cannot_appeal_flagged_comment(api):
+    api.moderator.next_moderation = ModerationResult(
+        decision=Decision.FLAGGED_FOR_REVIEW,
+        confidence=0.5,
+        reasoning="Borderline.",
+        category=RejectionCategory.HARASSMENT,
+    )
+    cid = api.client.post("/moderate", json={"comment": "hmm", "user_id": "u1"}).json()["comment_id"]
+    resp = api.client.post("/appeal", json={"comment_id": cid, "appeal_context": "please"})
+    assert resp.status_code == 409
+    assert resp.json()["error"]["code"] == "not_appealable"
+
+
+def test_appeal_context_is_trimmed(api):
+    cid = _submit_rejected(api)
+    api.client.post(
+        "/appeal", json={"comment_id": cid, "appeal_context": "   padded context   "}
+    )
+    # Trimmed both where it's sent to the model and where it's stored.
+    assert api.moderator.reconsider_calls[0]["appeal_context"] == "padded context"
+    assert api.store.get(cid).appeal_context == "padded context"

@@ -73,3 +73,33 @@ def test_in_memory_only_mode(tmp_path):
     assert len(store.all_entries()) == 1
     # No file should be created.
     assert list(tmp_path.iterdir()) == []
+
+
+def test_appeal_persists_across_reload(tmp_path):
+    path = str(tmp_path / "log.json")
+    store = ModerationStore(log_file=path)
+    entry = store.add_moderation(user_id="u1", comment="hi", result=_moderation())
+    store.add_appeal(
+        comment_id=entry.id,
+        appeal_context="reconsider please",
+        result=AppealResult(
+            decision=FinalDecision.APPROVED,
+            confidence=0.9,
+            reasoning="ok",
+            category=RejectionCategory.NONE,
+        ),
+    )
+    reloaded = ModerationStore(log_file=path)
+    e = reloaded.get(entry.id)
+    assert e.appealed is True
+    assert e.final_decision == FinalDecision.APPROVED
+    assert e.appeal_context == "reconsider please"
+
+
+def test_unicode_comment_round_trips(tmp_path):
+    path = str(tmp_path / "log.json")
+    store = ModerationStore(log_file=path)
+    text = "🚀 спам 测试 café — emojis & accents"
+    entry = store.add_moderation(user_id="u1", comment=text, result=_moderation())
+    reloaded = ModerationStore(log_file=path)
+    assert reloaded.get(entry.id).comment == text

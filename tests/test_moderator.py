@@ -6,6 +6,9 @@ fallback logic without any network calls.
 
 from __future__ import annotations
 
+import httpx
+from anthropic import APITimeoutError
+
 from app.models.schemas import Decision, FinalDecision, RejectionCategory
 from app.services import prompts
 from app.services.moderator import LLMModerator
@@ -152,3 +155,109 @@ def test_few_shot_history_shape():
     assert len(messages) == 3 * len(prompts.FEW_SHOT_EXAMPLES)
     assert messages[0]["role"] == "user"
     assert messages[1]["role"] == "assistant"
+
+
+# --- tool extraction edge cases ----------------------------------------- #
+def test_picks_tool_use_among_text_blocks():
+    # Real responses often contain a text block before the tool_use block.
+    resp = _Response(
+        [
+            _Block("text"),
+            _Block(
+                "tool_use",
+                name="submit_moderation_decision",
+                input_={"decision": "rejected", "confidence": 0.8, "category": "spam", "reasoning": "x"},
+            ),
+        ]
+    )
+    assert _moderator(lambda _: resp).moderate("x").decision == Decision.REJECTED
+
+
+def test_wrong_tool_name_falls_back():
+    mod = _moderator(
+        lambda _: _tool_response(
+            "some_other_tool",
+            {"decision": "approved", "confidence": 0.9, "category": "none", "reasoning": "x"},
+        )
+    )
+    assert mod.moderate("x").decision == Decision.FLAGGED_FOR_REVIEW
+
+
+def test_non_dict_tool_input_falls_back():
+    mod = _moderator(lambda _: _tool_response("submit_moderation_decision", None))
+    assert mod.moderate("x").decision == Decision.FLAGGED_FOR_REVIEW
+
+
+def test_empty_content_falls_back():
+    mod = _moderator(lambda _: _Response([]))
+    assert mod.moderate("x").decision == Decision.FLAGGED_FOR_REVIEW
+
+
+# --- appeal normalisation / fallbacks ----------------------------------- #
+def test_reconsider_normalises_approved_category():
+    mod = _moderator(
+        lambda _: _tool_response(
+            "submit_appeal_decision",
+            {"decision": "approved", "confidence": 0.8, "category": "spam", "reasoning": "x"},
+        )
+    )
+    assert mod.reconsider("c", "r", "ctx").category == RejectionCategory.NONE
+
+
+def test_reconsider_rejected_without_category_defaults_to_other():
+    mod = _moderator(
+        lambda _: _tool_response(
+            "submit_appeal_decision",
+            {"decision": "rejected", "confidence": 0.8, "category": "none", "reasoning": "x"},
+        )
+    )
+    assert mod.reconsider("c", "r", "ctx").category == RejectionCategory.OTHER
+
+
+def test_reconsider_falls_back_on_malformed_payload():
+    mod = _moderator(
+        lambda _: _tool_response(
+            "submit_appeal_decision",
+            {"decision": "approved", "confidence": 2.0, "category": "none", "reasoning": "x"},
+        )
+    )
+    assert mod.reconsider("c", "r", "ctx").decision == FinalDecision.REJECTED
+
+
+def test_reconsider_falls_back_when_no_tool_use():
+    mod = _moderator(lambda _: _Response([_Block("text")]))
+    assert mod.reconsider("c", "r", "ctx").decision == FinalDecision.REJECTED
+
+
+# --- retry behaviour ----------------------------------------------------- #
+def _timeout_error():
+    return APITimeoutError(httpx.Request("POST", "https://api.anthropic.com/v1/messages"))
+
+
+def test_retries_then_succeeds(monkeypatch):
+    monkeypatch.setattr("time.sleep", lambda *_: None)  # don't actually wait
+    calls = {"n": 0}
+
+    def behavior(_):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise _timeout_error()
+        return _tool_response(
+            "submit_moderation_decision",
+            {"decision": "approved", "confidence": 0.9, "category": "none", "reasoning": "ok"},
+        )
+
+    mod = LLMModerator(client=_FakeClient(behavior), model="m", max_retries=1)
+    result = mod.moderate("x")
+    assert result.decision == Decision.APPROVED
+    assert calls["n"] == 2  # retried exactly once
+
+
+def test_falls_back_after_exhausting_retries(monkeypatch):
+    monkeypatch.setattr("time.sleep", lambda *_: None)
+
+    def behavior(_):
+        raise _timeout_error()
+
+    mod = LLMModerator(client=_FakeClient(behavior), model="m", max_retries=1)
+    assert mod.moderate("x").decision == Decision.FLAGGED_FOR_REVIEW

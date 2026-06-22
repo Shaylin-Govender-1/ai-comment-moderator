@@ -14,7 +14,7 @@ discrimination law, property "get-rich-quick" spam, and so on).
 - **LLM:** Anthropic Claude **Sonnet 4.6** via the official SDK, using **forced
   tool use** for guaranteed structured output
 - **Storage:** in-memory + JSON file (no database required)
-- **Tests:** `pytest` (45 tests, fully offline — the LLM is mocked)
+- **Tests:** `pytest` (76 tests, fully offline — the LLM is mocked)
 - **CI:** GitHub Actions (lint + tests on Python 3.11/3.12/3.13)
 
 ---
@@ -33,7 +33,7 @@ discrimination law, property "get-rich-quick" spam, and so on).
 > ```bash
 > pip install -r requirements-dev.txt && pytest
 > ```
-> The 45 tests mock the LLM and exercise *everything*: all three decision types,
+> The 76 tests mock the LLM and exercise *everything*: all three decision types,
 > the complete appeal flow (overturn, uphold, not-found, double-appeal), every
 > input edge case, rate limiting, file persistence, and the graceful-fallback
 > behaviour when the AI errors or misbehaves. (CI runs these on every push.)
@@ -82,7 +82,7 @@ discrimination law, property "get-rich-quick" spam, and so on).
   `off_topic`, `other`.
 - ✅ **Webhook / notification on flagged content** — POSTs the entry to a
   configurable `WEBHOOK_URL` when a comment is flagged for review.
-- ✅ **Unit tests** — 45 deterministic tests, no network or API key required.
+- ✅ **Unit tests** — 76 deterministic tests, no network or API key required.
 
 ---
 
@@ -340,7 +340,7 @@ curl http://127.0.0.1:8000/log
 
 ```bash
 pip install -r requirements-dev.txt
-pytest            # 45 tests, fully offline (LLM mocked) — no API key needed
+pytest            # 76 tests, fully offline (LLM mocked) — no API key needed
 ruff check .      # linting
 ```
 
@@ -386,7 +386,7 @@ app/
   core/
     errors.py            # domain exceptions + handler
     rate_limit.py        # per-user fixed-window limiter
-tests/                   # 45 offline tests
+tests/                   # 76 offline tests
 .github/workflows/ci.yml # lint + tests on 3.11 / 3.12 / 3.13
 ```
 
@@ -519,6 +519,6 @@ On the AI and automation side specifically:
 - Reviewers supply their own Anthropic API key to test the live moderation. No key
   is shipped in the repo for security reasons, so the full AI behaviour needs a key
   in `.env` (~2 minutes to create); alternatively, the offline test suite (`pytest`,
-  45 tests, no key) verifies all of the logic. See
+  76 tests, no key) verifies all of the logic. See
   [Reviewing this? Two ways to test it](#-reviewing-this-two-ways-to-test-it).
 ```

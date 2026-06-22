@@ -71,3 +71,15 @@ def test_user_id_defaults_to_anonymous(api):
     resp = api.client.post("/moderate", json={"comment": "No user id provided"})
     assert resp.status_code == 200
     assert api.store.all_entries()[0].user_id == "anonymous"
+
+
+def test_flagged_comment_is_not_appealable(api):
+    api.moderator.next_moderation = ModerationResult(
+        decision=Decision.FLAGGED_FOR_REVIEW,
+        confidence=0.5,
+        reasoning="Borderline.",
+        category=RejectionCategory.HARASSMENT,
+    )
+    resp = api.client.post("/moderate", json={"comment": "hmm", "user_id": "u1"})
+    # Only rejected comments are appealable — flagged ones go to a human queue.
+    assert resp.json()["appealable"] is False

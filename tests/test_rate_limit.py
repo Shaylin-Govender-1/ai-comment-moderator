@@ -22,6 +22,26 @@ def test_parse_rate_invalid():
         parse_rate("0/minute")
 
 
+def test_parse_rate_accepts_plural_units():
+    assert parse_rate("10/minutes") == (10, 60)
+    assert parse_rate("5/seconds") == (5, 1)
+
+
+def test_window_resets_after_expiry(monkeypatch):
+    import app.core.rate_limit as rl
+
+    clock = {"now": 1000.0}
+    monkeypatch.setattr(rl.time, "monotonic", lambda: clock["now"])
+
+    limiter = RateLimiter("1/minute", enabled=True)
+    limiter.check("u")  # first allowed
+    with pytest.raises(RateLimitExceededError):
+        limiter.check("u")  # blocked within the window
+
+    clock["now"] += 61  # advance past the 60s window
+    limiter.check("u")  # allowed again after reset
+
+
 def test_limiter_allows_up_to_limit_then_blocks():
     limiter = RateLimiter("3/minute", enabled=True)
     for _ in range(3):
