@@ -452,6 +452,12 @@ tests/                   # 45 offline tests
 
 - **Persistent, concurrent-safe storage** (SQLite/Postgres) and a Redis-backed
   rate limiter so it works across multiple processes/instances.
+- **Containerised, independently deployable service** — package the API as a Docker
+  image and run it as a standalone container app (e.g. Cloud Run, AWS ECS, or Azure
+  Container Apps) with its own CPU/memory and autoscaling. Other applications would
+  consume the moderator over HTTP using an issued API key, so it runs in its own
+  isolated environment and never competes for the calling app's resources. This
+  pairs naturally with the authentication and Redis-backed rate limiting above.
 - **Authentication** so `user_id` is trusted from a token rather than supplied in
   the body, and so the log endpoint is protected (admin-only).
 - **An evaluation harness**: a labelled set of forum comments to measure
