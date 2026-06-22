@@ -473,6 +473,36 @@ tests/                   # 45 offline tests
   Today the same goal is met by the offline test suite; a demo mode would make the
   live endpoints explorable with zero setup too.
 
+On the AI and automation side specifically:
+
+- **Human-in-the-loop feedback loop (active learning)** — a moderator dashboard for
+  actioning `flagged_for_review` items, where every human decision and appeal outcome
+  is captured as labelled data. That data continuously curates the few-shot example
+  bank and, once there's enough of it, fine-tunes a model — so the moderator
+  measurably improves from real corrections instead of staying static.
+- **Tiered / cascaded model routing** — run a fast, cheap first pass (rules/blocklists
+  or a smaller model such as Claude Haiku) to auto-clear obviously clean content, and
+  only escalate genuinely ambiguous comments to Sonnet. At forum scale this cuts cost
+  and latency substantially while keeping the strongest model on the hard cases.
+- **Agentic, tool-using moderation grounded in live policy** — let the moderator call
+  tools mid-decision: retrieve the forum's current community guidelines and similar
+  past rulings (RAG) so decisions cite the exact rule and stay consistent as policy
+  evolves, and check link/domain reputation to catch scam URLs. This turns a single
+  LLM call into a context-aware agent rather than a fixed prompt.
+- **User-reputation / history-aware decisions** — feed each author's prior record
+  (already captured in the log) into moderation, so repeat offenders are automatically
+  escalated and consistently trustworthy users are fast-tracked — reducing both false
+  positives and reviewer workload.
+- **Decision monitoring, drift detection and spam-campaign dedup** — track decision,
+  category and confidence distributions over time to detect model/prompt drift and
+  emerging abuse patterns and alert on shifts; fingerprint near-duplicate comments via
+  embeddings to auto-handle coordinated spam campaigns without re-invoking the LLM for
+  each one.
+- **Self-consistency / LLM-as-judge for borderline cases** — on low-confidence
+  decisions, either sample the model a few times and take the majority vote, or have a
+  second model act as an independent verifier. This reduces variance and directly
+  improves the decision consistency the task prioritises.
+
 ### Assumptions
 
 - A single-instance deployment is acceptable for this exercise, so in-memory state
