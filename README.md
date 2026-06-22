@@ -435,4 +435,9 @@ tests/                   # 45 offline tests
   and runaway token usage; it's configurable.
 - The webhook is "fire-and-forget" best-effort — a flagged decision is still
   recorded even if the webhook is down.
+- Reviewers supply their own Anthropic API key to test the live moderation. No key
+  is shipped in the repo for security reasons, so the full AI behaviour needs a key
+  in `.env` (~2 minutes to create); alternatively, the offline test suite (`pytest`,
+  45 tests, no key) verifies all of the logic. See
+  [Reviewing this? Two ways to test it](#-reviewing-this-two-ways-to-test-it).
 ```
