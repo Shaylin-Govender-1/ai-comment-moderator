@@ -156,7 +156,7 @@ robustness, code quality, and making the project easy to run and review.
 
 ```bash
 # 1. Clone and enter the project
-git clone <your-repo-url>
+git clone https://github.com/Shaylin-Govender-1/ai-comment-moderator.git
 cd ai-comment-moderator
 
 # 2. Create and activate a virtual environment
@@ -180,7 +180,7 @@ uvicorn app.main:app --reload
 
 ```powershell
 # 1. Clone and enter the project
-git clone <your-repo-url>
+git clone https://github.com/Shaylin-Govender-1/ai-comment-moderator.git
 cd ai-comment-moderator
 
 # 2. Create and activate a virtual environment
