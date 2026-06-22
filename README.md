@@ -364,16 +364,23 @@ curl http://127.0.0.1:8000/log
 | Control / zero-width / null characters     | Stripped before moderation (keeps `\n` `\t` `\r`); a comment that is *only* such chars is rejected as empty (`422`) |
 | Comment trying to instruct the moderator (prompt injection) | Passed as untrusted, delimited content; the model is told to judge not obey, so injections are ignored and never auto-approve (typically rejected/flagged) |
 | Over-long `user_id`                        | `422` validation error (max 200 chars)                              |
+| Blank / whitespace `user_id`               | Defaults to `anonymous`                                            |
+| Unknown / extra fields in the JSON body    | Ignored — the request still succeeds (`200`)                        |
 | Borderline / ambiguous content             | `flagged_for_review` with reasoning + webhook notification          |
 | Appeal for a non-existent `comment_id`     | `404 comment_not_found`                                             |
 | Appeal for a comment that was not rejected  | `409 not_appealable`                                               |
 | Appeal for an already-appealed comment     | `409 already_appealed`                                             |
+| Appeal with empty/whitespace or missing `appeal_context` | `422` validation error                               |
+| Appeal with a missing `comment_id` field   | `422` validation error                                            |
 | Two appeals for the same comment at once   | Atomically guarded — exactly one is processed, the other gets `409 already_appealed` |
 | Rate limit exceeded for a user             | `429 rate_limit_exceeded`                                          |
 | LLM returns malformed / no structured data | Falls back to `flagged_for_review` (never a 500)                    |
 | LLM/network error during moderation        | Falls back to `flagged_for_review`                                  |
 | LLM/network error during an appeal         | Upholds the original rejection (never auto-approves on error)       |
 | `ANTHROPIC_API_KEY` not configured         | `/moderate` & `/appeal` return `503` with a clear message          |
+| Corrupt / unreadable log file on startup   | Loaded as an empty log — the app starts normally, no crash          |
+| Disk write fails while persisting the log  | Best-effort: error logged, the request still succeeds              |
+| Webhook delivery fails for a flagged comment | Swallowed (best-effort) — the decision is still recorded          |
 
 ---
 
