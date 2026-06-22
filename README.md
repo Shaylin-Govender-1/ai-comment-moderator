@@ -27,16 +27,20 @@ discrimination law, property "get-rich-quick" spam, and so on).
 > Create a key at [console.anthropic.com](https://console.anthropic.com/), put it
 > in `.env`, and run the server. Full instructions in
 > [Quick start](#quick-start-under-5-minutes) + [Try it with curl](#try-it-with-curl).
-> A key isn't shipped in this repo for obvious security reasons.
+> A key isn't shipped in this repo for obvious security reasons. I built and
+> verified this end-to-end against the live API using my own Anthropic API key
+> (with purchased credits), so the [curl examples](#try-it-with-curl) below are
+> real Sonnet 4.6 responses.
 >
 > **B. Verify all the logic with zero setup and no key — run the tests.**
 > ```bash
 > pip install -r requirements-dev.txt && pytest
 > ```
-> The 90 tests mock the LLM and exercise *everything*: all three decision types,
-> the complete appeal flow (overturn, uphold, not-found, double-appeal), every
-> input edge case, rate limiting, file persistence, and the graceful-fallback
-> behaviour when the AI errors or misbehaves. (CI runs these on every push.)
+> The 90 tests mock the LLM and exercise *everything* at **100% coverage**
+> (statement + branch, gated in CI): all three decision types, the complete appeal
+> flow (overturn, uphold, not-found, double-appeal), every input edge case, rate
+> limiting, file persistence, and the graceful-fallback behaviour when the AI errors
+> or misbehaves. (CI runs these on every push.)
 >
 > Either way you can read [How moderation works](#how-moderation-works) and the
 > [Write-up](#write-up) for the design reasoning, and the prompt itself lives in
@@ -499,9 +503,6 @@ tests/                   # 90 offline tests (100% coverage)
   fresh clone (with real Claude Sonnet 4.6 still the default when a key is present).
   Today the same goal is met by the offline test suite; a demo mode would make the
   live endpoints explorable with zero setup too.
-
-On the AI and automation side specifically:
-
 - **Human-in-the-loop feedback loop (active learning)** — a moderator dashboard for
   actioning `flagged_for_review` items, where every human decision and appeal outcome
   is captured as labelled data. That data continuously curates the few-shot example
