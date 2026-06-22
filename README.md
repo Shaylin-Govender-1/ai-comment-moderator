@@ -19,7 +19,33 @@ discrimination law, property "get-rich-quick" spam, and so on).
 
 ---
 
+> ### 👋 Reviewing this? Two ways to test it
+>
+> Live moderation is powered by a real LLM, so there are two ways to evaluate it:
+>
+> **A. See the real AI in action — add your own Anthropic key (~2 min, a few cents).**
+> Create a key at [console.anthropic.com](https://console.anthropic.com/), put it
+> in `.env`, and run the server. Full instructions in
+> [Quick start](#quick-start-under-5-minutes) + [Try it with curl](#try-it-with-curl).
+> A key isn't shipped in this repo for obvious security reasons.
+>
+> **B. Verify all the logic with zero setup and no key — run the tests.**
+> ```bash
+> pip install -r requirements-dev.txt && pytest
+> ```
+> The 45 tests mock the LLM and exercise *everything*: all three decision types,
+> the complete appeal flow (overturn, uphold, not-found, double-appeal), every
+> input edge case, rate limiting, file persistence, and the graceful-fallback
+> behaviour when the AI errors or misbehaves. (CI runs these on every push.)
+>
+> Either way you can read [How moderation works](#how-moderation-works) and the
+> [Write-up](#write-up) for the design reasoning, and the prompt itself lives in
+> [`app/services/prompts.py`](app/services/prompts.py).
+
+---
+
 ## Contents
+- [Reviewing this? Two ways to test it](#-reviewing-this-two-ways-to-test-it)
 - [Features](#features)
 - [Quick start (under 5 minutes)](#quick-start-under-5-minutes)
   - [macOS / Linux](#macos--linux)
