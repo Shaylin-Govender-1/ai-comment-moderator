@@ -574,4 +574,22 @@ tests/                   # 90 offline tests (100% coverage)
   in `.env` (~2 minutes to create); alternatively, the offline test suite (`pytest`,
   90 tests, no key) verifies all of the logic. See
   [Reviewing this? Two ways to test it](#-reviewing-this-two-ways-to-test-it).
-```
+- Moderation considers **only the comment text** (and, for appeals, the appeal
+  context) — no surrounding thread, author history, images, or link/URL reputation
+  are taken into account.
+- The encoded community guidelines **approximate the real forum policy** — they are
+  inferred from the public [propertytribes.com](https://www.propertytribes.com/) site
+  rather than an official rulebook; a real deployment would encode the actual policy.
+- **`flagged_for_review` items are actioned downstream** — the service flags, logs and
+  notifies (webhook), but assumes an external human-review process handles them; it has
+  no review UI and doesn't track their resolution.
+- **`GET /log` is unauthenticated** for this exercise; in production it would be
+  admin-only (see authentication in future work).
+- **Confidence is the model's self-reported estimate** — a useful triage signal, not a
+  calibrated statistical probability.
+- Comments are assumed to be **English-language and UK-context** — the prompt and
+  few-shot examples are written for that audience.
+- The client **retains the `comment_id`** returned by `/moderate` in order to appeal
+  later (there is no lookup-by-content).
+- Comments and `user_id` are **stored in the log in plaintext** — acceptable for this
+  exercise; production would add data-retention and PII handling.
