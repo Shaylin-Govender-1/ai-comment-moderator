@@ -421,6 +421,11 @@ tests/                   # 45 offline tests
 - **Pagination/filtering** on `/log`, plus structured request logging and metrics.
 - **Streaming/async LLM calls** and caching of identical recent comments.
 - **Richer notifications** (Slack/email templates, retry queue) beyond a single webhook.
+- **A no-key "demo mode"** — a heuristic stand-in moderator that activates when no
+  API key is set, so the live `/moderate` and `/appeal` endpoints can be tried on a
+  fresh clone (with real Claude Sonnet 4.6 still the default when a key is present).
+  Today the same goal is met by the offline test suite; a demo mode would make the
+  live endpoints explorable with zero setup too.
 
 ### Assumptions
 
