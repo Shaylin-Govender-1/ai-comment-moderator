@@ -31,7 +31,8 @@ jobs:
       - name: Lint (ruff)
         run: ruff check .
 
-      - name: Run tests
+      - name: Run tests with coverage
         # No ANTHROPIC_API_KEY is set: the suite mocks the LLM, so tests run
-        # fully offline and deterministically.
-        run: pytest
+        # fully offline and deterministically. Coverage is gated at 100%
+        # (statement + branch) via [tool.coverage.report] in pyproject.toml.
+        run: pytest --cov=app --cov-branch --cov-report=term-missing

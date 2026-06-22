@@ -151,3 +151,13 @@ def test_claim_for_appeal_validates():
     )
     with pytest.raises(NotAppealableError):
         store.claim_for_appeal(approved.id)
+
+
+def test_persist_failure_does_not_raise(tmp_path):
+    # Point the log at a path whose parent directory does not exist, so writing fails.
+    bad_path = tmp_path / "missing_dir" / "log.json"
+    store = ModerationStore(log_file=str(bad_path))
+    # Persistence is best-effort: the write fails but the call must still succeed.
+    entry = store.add_moderation(user_id="u1", comment="hi", result=_moderation())
+    assert store.get(entry.id) is not None
+    assert not bad_path.exists()

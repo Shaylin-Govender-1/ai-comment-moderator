@@ -9,11 +9,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, BackgroundTasks, Depends
 
-from app.core.errors import (
-    AlreadyAppealedError,
-    CommentNotFoundError,
-    NotAppealableError,
-)
+from app.core.errors import CommentNotFoundError
 from app.core.rate_limit import RateLimiter
 from app.dependencies import (
     get_moderator,
@@ -76,24 +72,17 @@ def appeal(
     limiter: RateLimiter = Depends(get_rate_limiter),
 ) -> AppealResponse:
     """Appeal a rejected comment with additional context for a final decision."""
+    # We need the user_id for rate limiting, so peek first (cheap, friendly 404).
     entry = store.get(body.comment_id)
     if entry is None:
         raise CommentNotFoundError(f"No comment found with id '{body.comment_id}'.")
-    if entry.decision != Decision.REJECTED:
-        raise NotAppealableError(
-            f"Only rejected comments can be appealed; this comment was "
-            f"'{entry.decision.value}'."
-        )
-    if entry.appealed:
-        raise AlreadyAppealedError(
-            "This comment has already been appealed; no further appeals are allowed."
-        )
 
     limiter.check(entry.user_id)
 
-    # Atomically re-check and reserve the comment. This closes the race window
-    # between the checks above and the write below: if a second appeal for the
-    # same comment is in flight, exactly one claim wins and the other gets a 409.
+    # Atomically validate (rejected, not yet appealed) and reserve the comment.
+    # This is the single source of truth for appeal eligibility, and holding the
+    # lock across check-and-mark means two appeals racing for the same comment
+    # can't both proceed — exactly one wins and the other gets a 409.
     claimed = store.claim_for_appeal(body.comment_id)
 
     result = moderator.reconsider(

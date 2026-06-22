@@ -59,6 +59,25 @@ def test_stale_buckets_are_evicted(monkeypatch):
     assert "late-user" in limiter._buckets
 
 
+def test_key_window_resets_between_sweeps(monkeypatch):
+    # A key can expire between sweeps; its own counter must then reset on access.
+    import app.core.rate_limit as rl
+
+    clock = {"now": 0.0}
+    monkeypatch.setattr(rl.time, "monotonic", lambda: clock["now"])
+
+    limiter = RateLimiter("2/minute", enabled=True)  # window = 60
+    clock["now"] = 30
+    limiter.check("k")  # bucket k starts at 30; no sweep yet
+
+    clock["now"] = 60
+    limiter.check("other")  # sweep runs but k (age 30s) survives it
+
+    clock["now"] = 91
+    limiter.check("k")  # no sweep (since last sweep at 60); k is now 61s old -> resets
+    assert limiter._buckets["k"] == (91, 1)
+
+
 def test_limiter_allows_up_to_limit_then_blocks():
     limiter = RateLimiter("3/minute", enabled=True)
     for _ in range(3):

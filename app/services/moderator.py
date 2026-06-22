@@ -34,6 +34,17 @@ logger = logging.getLogger(__name__)
 _MAX_TOKENS = 600
 
 
+def _coerce_category(*, approved: bool, category: RejectionCategory) -> RejectionCategory:
+    """Keep the category consistent with the decision.
+
+    Approved content has no category; anything not approved must carry one, so an
+    unset ('none') category on a reject/flag defaults to 'other'.
+    """
+    if approved:
+        return RejectionCategory.NONE
+    return RejectionCategory.OTHER if category == RejectionCategory.NONE else category
+
+
 class LLMModerator:
     """Moderates comments and re-evaluates appeals using an LLM."""
 
@@ -154,19 +165,16 @@ class LLMModerator:
     @staticmethod
     def _normalise_moderation(result: ModerationResult) -> ModerationResult:
         """Keep category consistent with the decision."""
-        if result.decision == Decision.APPROVED:
-            result.category = RejectionCategory.NONE
-        elif result.category == RejectionCategory.NONE:
-            # Rejected/flagged should carry a category; default to 'other'.
-            result.category = RejectionCategory.OTHER
+        result.category = _coerce_category(
+            approved=result.decision == Decision.APPROVED, category=result.category
+        )
         return result
 
     @staticmethod
     def _normalise_appeal(result: AppealResult) -> AppealResult:
-        if result.decision == FinalDecision.APPROVED:
-            result.category = RejectionCategory.NONE
-        elif result.category == RejectionCategory.NONE:
-            result.category = RejectionCategory.OTHER
+        result.category = _coerce_category(
+            approved=result.decision == FinalDecision.APPROVED, category=result.category
+        )
         return result
 
     @staticmethod

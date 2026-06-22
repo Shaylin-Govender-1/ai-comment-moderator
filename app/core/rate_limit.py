@@ -77,8 +77,3 @@ class RateLimiter:
                 )
 
             self._buckets[key] = (start, count + 1)
-
-    def reset(self) -> None:
-        """Clear all counters (useful in tests)."""
-        with self._lock:
-            self._buckets.clear()
