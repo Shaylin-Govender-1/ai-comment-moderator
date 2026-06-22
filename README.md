@@ -47,6 +47,7 @@ discrimination law, property "get-rich-quick" spam, and so on).
 ## Contents
 - [Reviewing this? Two ways to test it](#-reviewing-this-two-ways-to-test-it)
 - [Features](#features)
+- [Additional Features (Other than the Bonus Points)](#additional-features-other-than-the-bonus-points)
 - [Quick start (under 5 minutes)](#quick-start-under-5-minutes)
   - [macOS / Linux](#macos--linux)
   - [Windows](#windows)
@@ -83,8 +84,47 @@ discrimination law, property "get-rich-quick" spam, and so on).
   configurable `WEBHOOK_URL` when a comment is flagged for review.
 - ✅ **Unit tests** — 45 deterministic tests, no network or API key required.
 
-Plus: input validation for every edge case, graceful handling of LLM/network
-failures, interactive API docs (Swagger UI), and CI.
+---
+
+## Additional Features (Other than the Bonus Points)
+
+Features/functionality built beyond the core and bonus requirements — aimed at
+robustness, code quality, and making the project easy to run and review.
+
+**API & docs**
+- **`GET /health` endpoint** — liveness check that also reports the active model
+  and whether an API key is configured.
+- **Interactive API docs** — auto-generated Swagger UI at `/docs` and ReDoc at
+  `/redoc`, so every endpoint is testable in the browser with no extra tooling.
+- **`appealable` flag** on the `/moderate` response so a client knows up-front
+  whether a comment can be appealed.
+- **Consistent, typed error responses** — domain errors map to the right HTTP
+  status codes (`404` / `409` / `422` / `429` / `503`) with a uniform JSON error shape.
+
+**AI robustness**
+- **Guaranteed structured output via forced tool use** — the model must return a
+  schema-validated decision object, eliminating fragile free-text/JSON parsing.
+- **Defensive LLM handling** — per-request timeout, automatic retries with
+  exponential backoff, and safe fallbacks (flag-for-review if moderation can't
+  complete; uphold the original rejection if an appeal can't complete — never
+  auto-approve on error). The API never returns a 500 because the model misbehaved.
+
+**Storage**
+- **In-memory _and_ file persistence** — the brief allowed either; this does both,
+  writing JSON atomically so the log survives restarts and is reloaded on startup.
+- **Thread-safe store** — all log reads/writes are lock-guarded for concurrent requests.
+
+**Engineering & developer experience**
+- **Dependency-injection architecture** — the LLM client, store, notifier and rate
+  limiter are injected, giving clean separation of concerns and making the LLM
+  trivially mockable (which is how the test suite runs fully offline).
+- **Fully configurable via `.env`** — model, comment-length cap, rate limit, LLM
+  timeout, webhook URL and log file are all tunable without code changes.
+- **Continuous Integration (GitHub Actions)** — linting and the full test suite run
+  on every push/PR across Python 3.11, 3.12 and 3.13.
+- **Linting with `ruff`**, enforced in CI, to keep the codebase clean and consistent.
+- **Secret hygiene** — real keys live only in a gitignored `.env`; a committed
+  `.env.example` documents every variable.
 
 ---
 
