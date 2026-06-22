@@ -91,9 +91,14 @@ def appeal(
 
     limiter.check(entry.user_id)
 
+    # Atomically re-check and reserve the comment. This closes the race window
+    # between the checks above and the write below: if a second appeal for the
+    # same comment is in flight, exactly one claim wins and the other gets a 409.
+    claimed = store.claim_for_appeal(body.comment_id)
+
     result = moderator.reconsider(
-        comment=entry.comment,
-        original_reasoning=entry.reasoning,
+        comment=claimed.comment,
+        original_reasoning=claimed.reasoning,
         appeal_context=body.appeal_context,
     )
     updated = store.add_appeal(

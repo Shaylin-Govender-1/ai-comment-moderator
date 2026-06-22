@@ -14,8 +14,14 @@ import threading
 from datetime import UTC, datetime
 from pathlib import Path
 
+from app.core.errors import (
+    AlreadyAppealedError,
+    CommentNotFoundError,
+    NotAppealableError,
+)
 from app.models.schemas import (
     AppealResult,
+    Decision,
     LogEntry,
     ModerationResult,
 )
@@ -65,6 +71,34 @@ class ModerationStore:
             self._entries[entry.id] = entry
             self._persist()
         return entry
+
+    def claim_for_appeal(self, comment_id: str) -> LogEntry:
+        """Atomically validate and reserve a comment for appeal.
+
+        Holds the lock across the *check* and the *mark*, so two appeals racing
+        for the same comment can't both pass the "not yet appealed" check — the
+        loser gets ``AlreadyAppealedError``. The expensive LLM re-evaluation
+        happens after this returns, outside the lock.
+
+        Raises ``CommentNotFoundError`` / ``NotAppealableError`` /
+        ``AlreadyAppealedError`` as appropriate.
+        """
+        with self._lock:
+            entry = self._entries.get(comment_id)
+            if entry is None:
+                raise CommentNotFoundError(f"No comment found with id '{comment_id}'.")
+            if entry.decision != Decision.REJECTED:
+                raise NotAppealableError(
+                    f"Only rejected comments can be appealed; this comment was "
+                    f"'{entry.decision.value}'."
+                )
+            if entry.appealed:
+                raise AlreadyAppealedError(
+                    "This comment has already been appealed; no further appeals are allowed."
+                )
+            entry.appealed = True  # claim it
+            self._persist()
+            return entry
 
     def add_appeal(self, *, comment_id: str, appeal_context: str, result: AppealResult) -> LogEntry:
         """Attach an appeal outcome to an existing entry and return it."""

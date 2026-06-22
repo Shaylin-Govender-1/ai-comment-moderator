@@ -2,6 +2,15 @@
 
 from __future__ import annotations
 
+import threading
+
+import pytest
+
+from app.core.errors import (
+    AlreadyAppealedError,
+    CommentNotFoundError,
+    NotAppealableError,
+)
 from app.models.schemas import (
     AppealResult,
     Decision,
@@ -103,3 +112,42 @@ def test_unicode_comment_round_trips(tmp_path):
     entry = store.add_moderation(user_id="u1", comment=text, result=_moderation())
     reloaded = ModerationStore(log_file=path)
     assert reloaded.get(entry.id).comment == text
+
+
+def test_claim_for_appeal_is_atomic():
+    """Concurrent appeals for the same comment: exactly one claim wins."""
+    store = ModerationStore(log_file=None)
+    entry = store.add_moderation(user_id="u1", comment="hi", result=_moderation())
+
+    outcomes: list[str] = []
+    lock = threading.Lock()
+
+    def attempt() -> None:
+        try:
+            store.claim_for_appeal(entry.id)
+            with lock:
+                outcomes.append("won")
+        except AlreadyAppealedError:
+            with lock:
+                outcomes.append("lost")
+
+    threads = [threading.Thread(target=attempt) for _ in range(8)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    assert outcomes.count("won") == 1
+    assert outcomes.count("lost") == 7
+
+
+def test_claim_for_appeal_validates():
+    store = ModerationStore(log_file=None)
+    with pytest.raises(CommentNotFoundError):
+        store.claim_for_appeal("missing")
+
+    approved = store.add_moderation(
+        user_id="u1", comment="ok", result=_moderation(Decision.APPROVED)
+    )
+    with pytest.raises(NotAppealableError):
+        store.claim_for_appeal(approved.id)

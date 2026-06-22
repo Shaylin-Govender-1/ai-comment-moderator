@@ -53,7 +53,9 @@ class LLMModerator:
     def moderate(self, comment: str) -> ModerationResult:
         """Make a first-pass moderation decision for ``comment``."""
         messages = self._build_few_shot_messages()
-        messages.append({"role": "user", "content": f"Comment to moderate:\n{comment}"})
+        messages.append(
+            {"role": "user", "content": prompts.format_comment_for_moderation(comment)}
+        )
 
         tool_input = self._call_tool(
             messages=messages,
@@ -206,7 +208,7 @@ class LLMModerator:
         for i, (comment, tool_input) in enumerate(prompts.FEW_SHOT_EXAMPLES):
             call_id = f"example_{i}"
             messages.append(
-                {"role": "user", "content": f"Comment to moderate:\n{comment}"}
+                {"role": "user", "content": prompts.format_comment_for_moderation(comment)}
             )
             messages.append(
                 {

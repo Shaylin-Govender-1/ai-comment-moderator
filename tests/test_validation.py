@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from app.config import get_settings
 
+ZERO_WIDTH_SPACE = chr(0x200B)
+NULL_BYTE = chr(0)
+
 
 def test_empty_comment_rejected(api):
     resp = api.client.post("/moderate", json={"comment": "", "user_id": "u1"})
@@ -82,3 +85,17 @@ def test_missing_comment_id_in_appeal_rejected(api):
 def test_missing_appeal_context_rejected(api):
     resp = api.client.post("/appeal", json={"comment_id": "x"})
     assert resp.status_code == 422
+
+
+def test_control_characters_are_stripped(api):
+    # Zero-width space and a null byte should be removed before moderation.
+    comment = f"b{ZERO_WIDTH_SPACE}ad wo{NULL_BYTE}rd"
+    api.client.post("/moderate", json={"comment": comment, "user_id": "u1"})
+    assert api.moderator.moderate_calls[0] == "bad word"
+
+
+def test_comment_of_only_control_chars_rejected(api):
+    comment = ZERO_WIDTH_SPACE + ZERO_WIDTH_SPACE + NULL_BYTE
+    resp = api.client.post("/moderate", json={"comment": comment, "user_id": "u1"})
+    assert resp.status_code == 422
+    assert api.moderator.moderate_calls == []

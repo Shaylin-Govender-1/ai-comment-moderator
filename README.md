@@ -14,7 +14,7 @@ discrimination law, property "get-rich-quick" spam, and so on).
 - **LLM:** Anthropic Claude **Sonnet 4.6** via the official SDK, using **forced
   tool use** for guaranteed structured output
 - **Storage:** in-memory + JSON file (no database required)
-- **Tests:** `pytest` (76 tests, fully offline — the LLM is mocked)
+- **Tests:** `pytest` (84 tests, fully offline — the LLM is mocked)
 - **CI:** GitHub Actions (lint + tests on Python 3.11/3.12/3.13)
 
 ---
@@ -33,7 +33,7 @@ discrimination law, property "get-rich-quick" spam, and so on).
 > ```bash
 > pip install -r requirements-dev.txt && pytest
 > ```
-> The 76 tests mock the LLM and exercise *everything*: all three decision types,
+> The 84 tests mock the LLM and exercise *everything*: all three decision types,
 > the complete appeal flow (overturn, uphold, not-found, double-appeal), every
 > input edge case, rate limiting, file persistence, and the graceful-fallback
 > behaviour when the AI errors or misbehaves. (CI runs these on every push.)
@@ -82,7 +82,7 @@ discrimination law, property "get-rich-quick" spam, and so on).
   `off_topic`, `other`.
 - ✅ **Webhook / notification on flagged content** — POSTs the entry to a
   configurable `WEBHOOK_URL` when a comment is flagged for review.
-- ✅ **Unit tests** — 76 deterministic tests, no network or API key required.
+- ✅ **Unit tests** — 84 deterministic tests, no network or API key required.
 
 ---
 
@@ -113,6 +113,21 @@ robustness, code quality, and making the project easy to run and review.
 - **In-memory _and_ file persistence** — the brief allowed either; this does both,
   writing JSON atomically so the log survives restarts and is reloaded on startup.
 - **Thread-safe store** — all log reads/writes are lock-guarded for concurrent requests.
+- **Concurrency-safe appeals** — appeals are claimed atomically (check-and-mark under
+  one lock), so two appeals racing for the same comment can't both go through; exactly
+  one is processed and the other gets a `409`.
+
+**Security & abuse-resistance**
+- **Prompt-injection mitigation** — comments and appeal context are passed to the model
+  as clearly-delimited, explicitly *untrusted* content, and the system prompt instructs
+  the model to judge it, never to obey instructions inside it. Attempts to override
+  moderation are treated as a bad-faith signal and never auto-approve. (Mitigation, not
+  a guarantee — see the future-work notes.)
+- **Input sanitisation** — control, zero-width and null characters are stripped before
+  moderation (ordinary whitespace preserved), preventing invisible-character obfuscation
+  of banned words.
+- **Bounded rate-limiter memory** — per-user counters are swept on expiry so the limiter
+  can't grow unbounded as new users appear.
 
 **Engineering & developer experience**
 - **Dependency-injection architecture** — the LLM client, store, notifier and rate
@@ -321,13 +336,17 @@ curl http://127.0.0.1:8000/log
 | Input / situation                          | Behaviour                                                            |
 |--------------------------------------------|---------------------------------------------------------------------|
 | Empty or whitespace-only comment           | `422` validation error (LLM is never called)                        |
-| Missing `comment` field                    | `422` validation error                                              |
+| Missing `comment` field / non-string comment | `422` validation error                                            |
 | Comment longer than `MAX_COMMENT_LENGTH`   | `422` validation error (default limit 10,000 chars)                 |
 | Leading/trailing whitespace                | Trimmed before moderation                                          |
+| Control / zero-width / null characters     | Stripped before moderation (keeps `\n` `\t` `\r`); a comment that is *only* such chars is rejected as empty (`422`) |
+| Comment trying to instruct the moderator (prompt injection) | Passed as untrusted, delimited content; the model is told to judge not obey, so injections are ignored and never auto-approve (typically rejected/flagged) |
+| Over-long `user_id`                        | `422` validation error (max 200 chars)                              |
 | Borderline / ambiguous content             | `flagged_for_review` with reasoning + webhook notification          |
 | Appeal for a non-existent `comment_id`     | `404 comment_not_found`                                             |
 | Appeal for a comment that wasn't rejected  | `409 not_appealable`                                               |
 | Appeal for an already-appealed comment     | `409 already_appealed`                                             |
+| Two appeals for the same comment at once   | Atomically guarded — exactly one is processed, the other gets `409 already_appealed` |
 | Rate limit exceeded for a user             | `429 rate_limit_exceeded`                                          |
 | LLM returns malformed / no structured data | Falls back to `flagged_for_review` (never a 500)                    |
 | LLM/network error during moderation        | Falls back to `flagged_for_review`                                  |
@@ -340,14 +359,16 @@ curl http://127.0.0.1:8000/log
 
 ```bash
 pip install -r requirements-dev.txt
-pytest            # 76 tests, fully offline (LLM mocked) — no API key needed
+pytest            # 84 tests, fully offline (LLM mocked) — no API key needed
 ruff check .      # linting
 ```
 
-The tests cover: each decision type, the appeal flow (overturn, uphold,
-not-found, not-appealable, double-appeal), input validation, rate limiting,
-file persistence round-trips, and the moderator's fallback behaviour when the AI
-misbehaves.
+The tests cover: each decision type, the appeal flow (overturn, uphold, not-found,
+not-appealable, double-appeal), input validation and sanitisation (empty / over-long /
+non-string / control characters), rate limiting (including window reset and bucket
+eviction), concurrency-safe appeal claiming, prompt-injection wiring, webhook
+notifications, the `503` no-key path, file persistence round-trips, and the moderator's
+fallback behaviour when the AI errors or misbehaves.
 
 ---
 
@@ -386,7 +407,7 @@ app/
   core/
     errors.py            # domain exceptions + handler
     rate_limit.py        # per-user fixed-window limiter
-tests/                   # 76 offline tests
+tests/                   # 84 offline tests
 .github/workflows/ci.yml # lint + tests on 3.11 / 3.12 / 3.13
 ```
 
@@ -415,6 +436,10 @@ tests/                   # 76 offline tests
 6. **Logging + notification.** Every decision (and any appeal) is recorded in the
    log; flagged comments trigger the webhook on a background task so the response
    is never blocked.
+7. **Treats input as untrusted.** Comments and appeal context are sanitised (control
+   /zero-width/null characters stripped) and sent to the model inside delimiters as
+   explicitly untrusted content, so prompt-injection attempts are judged rather than
+   obeyed. Appeals are also claimed atomically, so concurrent appeals can't both run.
 
 ---
 
@@ -462,8 +487,9 @@ tests/                   # 76 offline tests
   the body, and so the log endpoint is protected (admin-only).
 - **An evaluation harness**: a labelled set of forum comments to measure
   precision/recall of the moderator and to catch prompt regressions in CI.
-- **Prompt-injection hardening** and clearer separation of the (untrusted) comment
-  from instructions, plus tests with adversarial comments.
+- **Deeper prompt-injection hardening** — building on the delimiting + untrusted-content
+  instructions already in place, add a dedicated injection/jailbreak classifier and a
+  standing adversarial test set run in CI.
 - **Pagination/filtering** on `/log`, plus structured request logging and metrics.
 - **Streaming/async LLM calls** and caching of identical recent comments.
 - **Richer notifications** (Slack/email templates, retry queue) beyond a single webhook.
@@ -519,6 +545,6 @@ On the AI and automation side specifically:
 - Reviewers supply their own Anthropic API key to test the live moderation. No key
   is shipped in the repo for security reasons, so the full AI behaviour needs a key
   in `.env` (~2 minutes to create); alternatively, the offline test suite (`pytest`,
-  76 tests, no key) verifies all of the logic. See
+  84 tests, no key) verifies all of the logic. See
   [Reviewing this? Two ways to test it](#-reviewing-this-two-ways-to-test-it).
 ```

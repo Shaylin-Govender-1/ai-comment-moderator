@@ -40,8 +40,20 @@ class RateLimiter:
         self.enabled = enabled
         self.limit, self.window = parse_rate(rate)
         self._lock = threading.Lock()
-        # key -> (window_start_epoch, count_in_window)
+        # key -> (window_start_monotonic, count_in_window)
         self._buckets: dict[str, tuple[float, int]] = {}
+        self._last_sweep = 0.0
+
+    def _sweep(self, now: float) -> None:
+        """Drop buckets whose window has fully elapsed (called under the lock).
+
+        Without this the dict would grow unbounded as new users appear. Sweeping
+        is throttled to at most once per window, so it stays cheap.
+        """
+        expired = [k for k, (start, _) in self._buckets.items() if now - start >= self.window]
+        for k in expired:
+            del self._buckets[k]
+        self._last_sweep = now
 
     def check(self, key: str) -> None:
         """Record a hit for ``key``; raise ``RateLimitExceededError`` if over limit."""
@@ -50,6 +62,8 @@ class RateLimiter:
 
         now = time.monotonic()
         with self._lock:
+            if now - self._last_sweep >= self.window:
+                self._sweep(now)
             start, count = self._buckets.get(key, (now, 0))
             if now - start >= self.window:
                 # Window expired — reset.

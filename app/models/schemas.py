@@ -8,6 +8,7 @@ are handled.
 
 from __future__ import annotations
 
+import unicodedata
 import uuid
 from datetime import UTC, datetime
 from enum import Enum
@@ -56,9 +57,22 @@ class RejectionCategory(str, Enum):
 # --------------------------------------------------------------------------- #
 # Shared validation
 # --------------------------------------------------------------------------- #
+def _strip_control_chars(value: str) -> str:
+    """Remove control / zero-width / formatting characters (Unicode category "C").
+
+    This drops null bytes and invisible characters (e.g. zero-width spaces) that
+    carry no legitimate meaning and are commonly used to obfuscate banned words or
+    smuggle payloads, while keeping ordinary whitespace (newline, tab, carriage
+    return) so genuine formatting survives.
+    """
+    return "".join(
+        ch for ch in value if ch in "\n\t\r" or not unicodedata.category(ch).startswith("C")
+    )
+
+
 def _validate_text(value: str, field_name: str) -> str:
-    """Trim and ensure the text is non-empty and within the configured limit."""
-    cleaned = value.strip()
+    """Sanitize, trim, and ensure the text is non-empty and within the limit."""
+    cleaned = _strip_control_chars(value).strip()
     if not cleaned:
         raise ValueError(f"{field_name} must not be empty or whitespace only.")
     max_len = get_settings().max_comment_length

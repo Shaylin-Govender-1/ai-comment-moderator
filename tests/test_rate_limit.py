@@ -42,6 +42,23 @@ def test_window_resets_after_expiry(monkeypatch):
     limiter.check("u")  # allowed again after reset
 
 
+def test_stale_buckets_are_evicted(monkeypatch):
+    import app.core.rate_limit as rl
+
+    clock = {"now": 0.0}
+    monkeypatch.setattr(rl.time, "monotonic", lambda: clock["now"])
+
+    limiter = RateLimiter("5/minute", enabled=True)
+    for i in range(10):
+        limiter.check(f"user-{i}")
+    assert len(limiter._buckets) == 10
+
+    clock["now"] += 61  # every existing window has now expired
+    limiter.check("late-user")  # this check triggers a sweep first
+    assert len(limiter._buckets) == 1
+    assert "late-user" in limiter._buckets
+
+
 def test_limiter_allows_up_to_limit_then_blocks():
     limiter = RateLimiter("3/minute", enabled=True)
     for _ in range(3):
