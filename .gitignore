@@ -1,0 +1,36 @@
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env/
+.python-version
+
+# Test / tooling caches
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+
+# Runtime data
+moderation_log.json
+*.log
+
+# Editor / OS
+.idea/
+.vscode/
+.DS_Store
+
+# Local notes (not part of the deliverable)
+IMPLEMENTATION_PLAN.md
+NOTES.md
