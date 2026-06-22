@@ -55,11 +55,11 @@ discrimination law, property "get-rich-quick" spam, and so on).
 - [Quick start (under 5 minutes)](#quick-start-under-5-minutes)
   - [macOS / Linux](#macos--linux)
   - [Windows](#windows)
+- [Configuration](#configuration)
 - [API reference](#api-reference)
 - [Try it with curl](#try-it-with-curl)
 - [Edge-case behaviour](#edge-case-behaviour)
 - [Running the tests](#running-the-tests)
-- [Configuration](#configuration)
 - [Project structure](#project-structure)
 - [How moderation works](#how-moderation-works)
 - [Write-up](#write-up)
@@ -206,6 +206,24 @@ The API is now at **http://127.0.0.1:8000**.
 
 - Interactive docs (Swagger UI): **http://127.0.0.1:8000/docs**
 - Health check: **http://127.0.0.1:8000/health**
+
+---
+
+## Configuration
+
+All configuration is via environment variables (or a `.env` file). See
+[`.env.example`](.env.example).
+
+| Variable              | Default              | Description                                              |
+|-----------------------|----------------------|----------------------------------------------------------|
+| `ANTHROPIC_API_KEY`   | _(required)_         | Your Anthropic API key                                   |
+| `MODERATION_MODEL`    | `claude-sonnet-4-6`  | Model used for moderation                                |
+| `MAX_COMMENT_LENGTH`  | `10000`              | Max characters per comment/appeal                        |
+| `RATE_LIMIT`          | `10/minute`          | Per-user limit, `<count>/<second\|minute\|hour>`          |
+| `RATE_LIMIT_ENABLED`  | `true`               | Toggle rate limiting                                     |
+| `LOG_FILE`            | `moderation_log.json`| File the log is persisted to (blank = in-memory only)    |
+| `WEBHOOK_URL`         | _(empty)_            | If set, flagged comments are POSTed here                 |
+| `LLM_TIMEOUT_SECONDS` | `30`                 | Per-request LLM timeout before falling back              |
 
 ---
 
@@ -374,24 +392,6 @@ non-string / control characters), rate limiting (including window reset and buck
 eviction), concurrency-safe appeal claiming, prompt-injection wiring, webhook
 notifications, the `503` no-key path, file persistence round-trips, and the moderator's
 fallback behaviour when the AI errors or misbehaves.
-
----
-
-## Configuration
-
-All configuration is via environment variables (or a `.env` file). See
-[`.env.example`](.env.example).
-
-| Variable              | Default              | Description                                              |
-|-----------------------|----------------------|----------------------------------------------------------|
-| `ANTHROPIC_API_KEY`   | _(required)_         | Your Anthropic API key                                   |
-| `MODERATION_MODEL`    | `claude-sonnet-4-6`  | Model used for moderation                                |
-| `MAX_COMMENT_LENGTH`  | `10000`              | Max characters per comment/appeal                        |
-| `RATE_LIMIT`          | `10/minute`          | Per-user limit, `<count>/<second\|minute\|hour>`          |
-| `RATE_LIMIT_ENABLED`  | `true`               | Toggle rate limiting                                     |
-| `LOG_FILE`            | `moderation_log.json`| File the log is persisted to (blank = in-memory only)    |
-| `WEBHOOK_URL`         | _(empty)_            | If set, flagged comments are POSTed here                 |
-| `LLM_TIMEOUT_SECONDS` | `30`                 | Per-request LLM timeout before falling back              |
 
 ---
 
