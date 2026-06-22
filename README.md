@@ -59,7 +59,7 @@ discrimination law, property "get-rich-quick" spam, and so on).
 - [How moderation works](#how-moderation-works)
 - [Write-up](#write-up)
   - [Key decisions and why](#key-decisions-and-why)
-  - [What would you improve or add with more time](#what-would-you-improve-or-add-with-more-time)
+  - [What I would improve or add with more time](#what-i-would-improve-or-add-with-more-time)
   - [Assumptions](#assumptions)
 
 ---
@@ -408,7 +408,7 @@ tests/                   # 45 offline tests
   mirrors to JSON for durability, with a single interface — swapping in a real
   database later wouldn't touch the routes or services.
 
-### What would you improve or add with more time
+### What I would improve or add with more time
 
 - **Persistent, concurrent-safe storage** (SQLite/Postgres) and a Redis-backed
   rate limiter so it works across multiple processes/instances.
