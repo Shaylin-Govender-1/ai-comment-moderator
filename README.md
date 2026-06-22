@@ -477,6 +477,31 @@ tests/                   # 90 offline tests (100% coverage)
 - **Storage behind one class.** `ModerationStore` is in-memory for speed and
   mirrors to JSON for durability, with a single interface — swapping in a real
   database later wouldn't touch the routes or services.
+- **Model tier — Claude Sonnet 4.6.** Moderation here needs genuine reasoning about
+  nuance and context — telling a strong-but-legitimate opinion apart from unlawful
+  discrimination, or judging whether an appeal's new context actually changes the
+  picture — not keyword matching. Sonnet 4.6 is the strong mid-tier that balances
+  that reasoning quality against cost and latency; obvious cases could later be
+  routed to a cheaper first-pass model (see future work).
+- **Domain-grounded prompt with few-shot examples.** The system prompt encodes the
+  Property Tribes context and UK-specific rules (Equality Act "No DSS" discrimination,
+  gas-safety / illegal advice, get-rich-quick property spam) with worked examples.
+  Generic moderation would both over-block robust debate *and* miss domain-specific
+  harms, so grounding the model in the forum's world makes decisions more accurate
+  and consistent.
+- **Comments treated as untrusted input.** A comment is adversarial user input, so it
+  is sanitised (control / zero-width / null characters stripped) and passed to the
+  model as clearly-delimited, explicitly-untrusted content, with the system prompt
+  instructed to judge it and never obey instructions inside it. Moderation is exactly
+  where prompt injection will be attempted.
+- **Synchronous endpoints on FastAPI's threadpool.** The endpoints are plain `def`, so
+  FastAPI runs them in its worker threadpool and the blocking Anthropic SDK call never
+  ties up the event loop — staying responsive without the added complexity of fully
+  async I/O.
+- **Public repository.** The brief allows public or private-with-access; I chose public
+  so reviewers can open the link and read everything immediately, with no access-granting
+  step. No secrets live in the repo (the API key is gitignored in `.env`), so there is no
+  downside to public visibility.
 
 ### What I would improve or add with more time
 
