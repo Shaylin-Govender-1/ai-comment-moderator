@@ -27,7 +27,7 @@ discrimination law, property "get-rich-quick" spam, and so on).
 > Create a key at [console.anthropic.com](https://console.anthropic.com/), put it
 > in `.env`, and run the server. Full instructions in
 > [Quick start](#quick-start-under-5-minutes) + [Try it with curl](#try-it-with-curl).
-> A key is not shipped in this repo for obvious security reasons. I built and
+> A key is not shipped in this repo for security reasons. I built and
 > verified this end-to-end against the live API using my own Anthropic API key
 > (with purchased credits), so the [curl examples](#try-it-with-curl) below are
 > real Sonnet 4.6 responses.
