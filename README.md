@@ -27,7 +27,7 @@ discrimination law, property "get-rich-quick" spam, and so on).
 > Create a key at [console.anthropic.com](https://console.anthropic.com/), put it
 > in `.env`, and run the server. Full instructions in
 > [Quick start](#quick-start-under-5-minutes) + [Try it with curl](#try-it-with-curl).
-> A key isn't shipped in this repo for obvious security reasons. I built and
+> A key is not shipped in this repo for obvious security reasons. I built and
 > verified this end-to-end against the live API using my own Anthropic API key
 > (with purchased credits), so the [curl examples](#try-it-with-curl) below are
 > real Sonnet 4.6 responses.
@@ -109,8 +109,8 @@ robustness, code quality, and making the project easy to run and review.
 - **Guaranteed structured output via forced tool use** — the model must return a
   schema-validated decision object, eliminating fragile free-text/JSON parsing.
 - **Defensive LLM handling** — per-request timeout, automatic retries with
-  exponential backoff, and safe fallbacks (flag-for-review if moderation can't
-  complete; uphold the original rejection if an appeal can't complete — never
+  exponential backoff, and safe fallbacks (flag-for-review if moderation cannot
+  complete; uphold the original rejection if an appeal cannot complete — never
   auto-approve on error). The API never returns a 500 because the model misbehaved.
 
 **Storage**
@@ -118,7 +118,7 @@ robustness, code quality, and making the project easy to run and review.
   writing JSON atomically so the log survives restarts and is reloaded on startup.
 - **Thread-safe store** — all log reads/writes are lock-guarded for concurrent requests.
 - **Concurrency-safe appeals** — appeals are claimed atomically (check-and-mark under
-  one lock), so two appeals racing for the same comment can't both go through; exactly
+  one lock), so two appeals racing for the same comment cannot both go through; exactly
   one is processed and the other gets a `409`.
 
 **Security & abuse-resistance**
@@ -131,7 +131,7 @@ robustness, code quality, and making the project easy to run and review.
   moderation (ordinary whitespace preserved), preventing invisible-character obfuscation
   of banned words.
 - **Bounded rate-limiter memory** — per-user counters are swept on expiry so the limiter
-  can't grow unbounded as new users appear.
+  cannot grow unbounded as new users appear.
 
 **Engineering & developer experience**
 - **Dependency-injection architecture** — the LLM client, store, notifier and rate
@@ -348,7 +348,7 @@ curl http://127.0.0.1:8000/log
 | Over-long `user_id`                        | `422` validation error (max 200 chars)                              |
 | Borderline / ambiguous content             | `flagged_for_review` with reasoning + webhook notification          |
 | Appeal for a non-existent `comment_id`     | `404 comment_not_found`                                             |
-| Appeal for a comment that wasn't rejected  | `409 not_appealable`                                               |
+| Appeal for a comment that was not rejected  | `409 not_appealable`                                               |
 | Appeal for an already-appealed comment     | `409 already_appealed`                                             |
 | Two appeals for the same comment at once   | Atomically guarded — exactly one is processed, the other gets `409 already_appealed` |
 | Rate limit exceeded for a user             | `429 rate_limit_exceeded`                                          |
@@ -433,9 +433,9 @@ tests/                   # 90 offline tests (100% coverage)
 4. **Appeals genuinely reconsider.** The appeal call gives the model the original
    comment, the original reasoning, **and** the user's new context, and explicitly
    asks it to weigh whether the appeal changes the picture — and to state in its
-   reasoning how it did or didn't. Decisions are restricted to approve/reject.
+   reasoning how it did or did not. Decisions are restricted to approve/reject.
 5. **Graceful degradation.** Timeouts and transient errors are retried with
-   backoff; if the model still can't be parsed, moderation falls back to
+   backoff; if the model still cannot be parsed, moderation falls back to
    `flagged_for_review`, and appeals fall back to upholding the rejection. The API
    never 500s because the model misbehaved.
 6. **Logging + notification.** Every decision (and any appeal) is recorded in the
@@ -444,7 +444,7 @@ tests/                   # 90 offline tests (100% coverage)
 7. **Treats input as untrusted.** Comments and appeal context are sanitised (control
    /zero-width/null characters stripped) and sent to the model inside delimiters as
    explicitly untrusted content, so prompt-injection attempts are judged rather than
-   obeyed. Appeals are also claimed atomically, so concurrent appeals can't both run.
+   obeyed. Appeals are also claimed atomically, so concurrent appeals cannot both run.
 
 ---
 
@@ -476,7 +476,7 @@ tests/                   # 90 offline tests (100% coverage)
   typically keys on IP), and it is fully unit-testable without HTTP.
 - **Storage behind one class.** `ModerationStore` is in-memory for speed and
   mirrors to JSON for durability, with a single interface — swapping in a real
-  database later wouldn't touch the routes or services.
+  database later would not touch the routes or services.
 - **Model tier — Claude Sonnet 4.6.** Moderation here needs genuine reasoning about
   nuance and context — telling a strong-but-legitimate opinion apart from unlawful
   discrimination, or judging whether an appeal's new context actually changes the
@@ -531,7 +531,7 @@ tests/                   # 90 offline tests (100% coverage)
 - **Human-in-the-loop feedback loop (active learning)** — a moderator dashboard for
   actioning `flagged_for_review` items, where every human decision and appeal outcome
   is captured as labelled data. That data continuously curates the few-shot example
-  bank and, once there's enough of it, fine-tunes a model — so the moderator
+  bank and, once there is enough of it, fine-tunes a model — so the moderator
   measurably improves from real corrections instead of staying static.
 - **Tiered / cascaded model routing** — run a fast, cheap first pass (rules/blocklists
   or a smaller model such as Claude Haiku) to auto-clear obviously clean content, and
@@ -566,7 +566,7 @@ tests/                   # 90 offline tests (100% coverage)
 - Only `rejected` comments are appealable; `flagged_for_review` goes to a human
   queue rather than the automated appeal path, and `approved` needs no appeal.
 - A comment length cap (default 10,000 chars) is a reasonable guard against abuse
-  and runaway token usage; it's configurable.
+  and runaway token usage; it is configurable.
 - The webhook is "fire-and-forget" best-effort — a flagged decision is still
   recorded even if the webhook is down.
 - Reviewers supply their own Anthropic API key to test the live moderation. No key
@@ -582,7 +582,7 @@ tests/                   # 90 offline tests (100% coverage)
   rather than an official rulebook; a real deployment would encode the actual policy.
 - **`flagged_for_review` items are actioned downstream** — the service flags, logs and
   notifies (webhook), but assumes an external human-review process handles them; it has
-  no review UI and doesn't track their resolution.
+  no review UI and does not track their resolution.
 - **`GET /log` is unauthenticated** for this exercise; in production it would be
   admin-only (see authentication in future work).
 - **Confidence is the model's self-reported estimate** — a useful triage signal, not a
