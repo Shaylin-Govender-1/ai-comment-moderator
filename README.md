@@ -126,7 +126,7 @@ robustness, code quality, and making the project easy to run and review.
   as clearly-delimited, explicitly *untrusted* content, and the system prompt instructs
   the model to judge it, never to obey instructions inside it. Attempts to override
   moderation are treated as a bad-faith signal and never auto-approve. (Mitigation, not
-  a guarantee — see the future-work notes.)
+  a guarantee — see [Deeper prompt-injection hardening](#what-i-would-improve-or-add-with-more-time).)
 - **Input sanitisation** — control, zero-width and null characters are stripped before
   moderation (ordinary whitespace preserved), preventing invisible-character obfuscation
   of banned words.
